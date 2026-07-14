@@ -3,6 +3,7 @@ import SwiftUI
 struct LoginView: View {
     
     @StateObject private var viewModel = LoginViewModel()
+    @StateObject private var loading = LoadingState()
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -41,7 +42,13 @@ struct LoginView: View {
                                 .foregroundColor(.customGrey)
                                 .font(.interMedium(12))
                             
-                            CustomTextField(placeholder: "Password", text: $viewModel.username)
+                            CustomTextField(placeholder: "Password", text: $viewModel.password)
+                        }
+                        
+                        if let error = viewModel.error {
+                            Text(error)
+                                .foregroundColor(.red)
+                                .font(.interRegular(12))
                         }
                         
                         Text(viewModel.goToRegisterText)
@@ -55,8 +62,10 @@ struct LoginView: View {
                     
                     
                     CustomButtonView(title: "Login") {
-                        print("test")
+                        viewModel.login(loading: loading)
                     }
+                    .disabled(!viewModel.isFormValid || viewModel.isLoading)
+                    .opacity(viewModel.isFormValid ? 1 : 0.5)
                     
                 }
                 .padding(.top, 30)
@@ -67,6 +76,7 @@ struct LoginView: View {
         .ignoresSafeArea()
         .navigationBarBackButtonHidden(true)
         .background(Color.brand)
+        .loader(loading)
     }
 }
 

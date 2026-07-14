@@ -25,16 +25,25 @@ final class LoginViewModel: LoginViewModelInputProtocol, ObservableObject {
     @Published var error: String?
     @Published var isSuccess: Bool = false
     
-    private let registerManager: RegisterManager
     private let loginManager: LoginManager
+    private var cancellables = Set<AnyCancellable>()
     
-    init(registerManager: RegisterManager = RegisterManager(),
-         loginManager: LoginManager = LoginManager()) {
-        self.registerManager = registerManager
+    init(loginManager: LoginManager = LoginManager()) {
         self.loginManager = loginManager
+        setupValidation()
     }
     
-    func register(loading: LoadingState) {
+    private func setupValidation() {
+        Publishers.CombineLatest($username, $password)
+            .map { username, password in
+                username.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 &&
+                password.count >= 6
+            }
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isFormValid)
+    }
+    
+    func login(loading: LoadingState) {
         guard isFormValid else { return }
 
         isLoading = true
@@ -43,29 +52,29 @@ final class LoginViewModel: LoginViewModelInputProtocol, ObservableObject {
         Task {
             loading.show()
             do {
-                _ = try await registerManager.register(
-                    username: username,
-                    password: password
-                )
-
                 let loginResponse = try await loginManager.login(
                     username: username,
                     password: password
                 )
 
-                print("TOKEN:", loginResponse.token)
-
                 KeychainService.shared.saveToken(loginResponse.token)
 
                 await MainActor.run {
                     SessionManager.shared.isAuthorized = true
+                    self.isSuccess = true
+                    
+                    print(KeychainService.shared.getToken())
                 }
 
             } catch {
-                self.error = error.localizedDescription
+                await MainActor.run {
+                    self.error = error.localizedDescription
+                }
             }
 
-            self.isLoading = false
+            await MainActor.run {
+                self.isLoading = false
+            }
             loading.hide()
         }
     }

@@ -27,11 +27,23 @@ final class RegisterViewModel: RegisterViewModelInputProtocol, ObservableObject 
     
     private let registerManager: RegisterManager
     private let loginManager: LoginManager
+    private var cancellables = Set<AnyCancellable>()
     
     init(registerManager: RegisterManager = RegisterManager(),
          loginManager: LoginManager = LoginManager()) {
         self.registerManager = registerManager
         self.loginManager = loginManager
+        setupValidation()
+    }
+    
+    private func setupValidation() {
+        Publishers.CombineLatest($username, $password)
+            .map { username, password in
+                username.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 &&
+                password.count >= 6
+            }
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isFormValid)
     }
     
     func register(loading: LoadingState) {
@@ -53,19 +65,22 @@ final class RegisterViewModel: RegisterViewModelInputProtocol, ObservableObject 
                     password: password
                 )
 
-                print("TOKEN:", loginResponse.token)
-
                 KeychainService.shared.saveToken(loginResponse.token)
 
                 await MainActor.run {
                     SessionManager.shared.isAuthorized = true
+                    self.isSuccess = true
                 }
 
             } catch {
-                self.error = error.localizedDescription
+                await MainActor.run {
+                    self.error = error.localizedDescription
+                }
             }
 
-            self.isLoading = false
+            await MainActor.run {
+                self.isLoading = false
+            }
             loading.hide()
         }
     }

@@ -3,7 +3,9 @@ import SwiftUI
 struct RegisterView: View {
     
     @StateObject private var viewModel = RegisterViewModel()
+    @StateObject private var loading = LoadingState()
     @State private var navigateToSignIn = false
+    var onSignIn: (() -> Void)?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 30) {
@@ -41,7 +43,13 @@ struct RegisterView: View {
                                 .foregroundColor(.customGrey)
                                 .font(.interMedium(12))
                             
-                            CustomTextField(placeholder: "Password", text: $viewModel.username)
+                            CustomTextField(placeholder: "Password", text: $viewModel.password)
+                        }
+                        
+                        if let error = viewModel.error {
+                            Text(error)
+                                .foregroundColor(.red)
+                                .font(.interRegular(12))
                         }
                         
                         Text(viewModel.goToLoginText)
@@ -55,8 +63,10 @@ struct RegisterView: View {
                     
                     
                     CustomButtonView(title: "Register") {
-                        print("test")
+                        viewModel.register(loading: loading)
                     }
+                    .disabled(!viewModel.isFormValid || viewModel.isLoading)
+                    .opacity(viewModel.isFormValid ? 1 : 0.5)
                     
                 }
                 .padding(.top, 30)
@@ -69,6 +79,11 @@ struct RegisterView: View {
         .background(Color.brand)
         .navigationDestination(isPresented: $navigateToSignIn) {
             LoginView()
+        }
+        .overlay {
+            if viewModel.isLoading {
+                ProgressView()
+            }
         }
     }
 }
