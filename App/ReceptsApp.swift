@@ -11,9 +11,7 @@ import SwiftUI
 struct ReceptsApp: App {
     var body: some Scene {
         WindowGroup {
-            NavigationStack {
-                RegisterView()
-            }
+            RootView()
         }
     }
 }
